@@ -1,0 +1,15 @@
+{
+  "name": "整合工作台",
+  "short_name": "工作台",
+  "description": "生活台+学习台 - 雅思/读书/内容创作/播客/理财/编程/钢琴/好物/菜谱/记账/运动/旅行",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f0f1e",
+  "theme_color": "#16213e",
+  "lang": "zh-CN",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
