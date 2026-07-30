@@ -475,9 +475,10 @@ function renderGoods(){
     html+=`<div class="filter-bar">${seasons.map(s=>`<span class="tag ${sf===s[0]?'sel':'unsel'}" onclick="setGoodsSeason('${s[0]}')">${s[1]}</span>`).join('')}</div>`;
     if(sf!=='all')filtered=filtered.filter(x=>x.season===sf);
   }
-  html+=`<button class="btn" style="width:100%;margin-bottom:10px" onclick="addGoods()">➕ 添加好物</button>`;
+  html+=`<button class="btn" style="width:100%;margin-bottom:8px" onclick="smartAddGoods()">🤖 智能识别好物</button>`;
+  html+=`<button class="btn" style="width:100%;margin-bottom:10px;background:transparent;border:1px solid var(--goods);color:var(--goods)" onclick="addGoods()">➕ 手动添加</button>`;
   if(filtered.length===0)html+='<div class="empty">暂无收藏，点击上方按钮添加</div>';
-  else html+=filtered.map((x,i)=>`<div class="list-item"><div class="li-icon">${x.cat==='eat'?'🍫':x.cat==='use'?'🧴':'👕'}</div><div class="li-info"><div class="li-title">${x.name}</div><div class="li-desc">${x.note||''} ${x.season?'· '+x.season:''}</div></div>${x.link?`<a href="${x.link}" target="_blank" style="font-size:.7em;color:var(--primary)">链接 ›</a>`:''}</div>`).join('');
+  else html+=filtered.map((x,i)=>`<div class="list-item" onclick="editGoods(${i})"><div class="li-icon">${x.cat==='eat'?'🍫':x.cat==='use'?'🧴':'👕'}</div><div class="li-info"><div class="li-title">${x.name}</div><div class="li-desc">${x.shop?'🏪 '+x.shop+' · ':''}${x.price?'¥'+x.price+' · ':''}${x.note||''} ${x.season?'· '+x.season:''}</div></div>${x.link?`<a href="${x.link}" target="_blank" style="font-size:1.2em;color:var(--goods)" onclick="event.stopPropagation()">🔗</a>`:''}</div>`).join('');
   return html;
 }
 function setGoodsFilter(f){setStore('hub_goods_filter',f);renderMod('goods')}
@@ -487,7 +488,9 @@ function addGoods(){
     <div class="form-row"><label>名称</label><input id="g-name" placeholder="好物名称"></div>
     <div class="form-row"><label>分类</label><select id="g-cat"><option value="eat">吃的</option><option value="use">用的</option><option value="wear">穿的</option></select></div>
     <div class="form-row" id="g-season-row" style="display:none"><label>季节（穿）</label><select id="g-season"><option value="spring">春</option><option value="summer">夏</option><option value="autumn">秋</option><option value="winter">冬</option></select></div>
-    <div class="form-row"><label>链接</label><input id="g-link" placeholder="购买链接"></div>
+    <div class="form-row"><label>购买链接</label><input id="g-link" placeholder="购买链接"></div>
+    <div class="form-row"><label>店铺/品牌</label><input id="g-shop" placeholder="如：优衣库/三只松鼠旗舰店"></div>
+    <div class="form-row"><label>价格（元）</label><input id="g-price" type="number" placeholder="价格"></div>
     <div class="form-row"><label>优点总结</label><textarea id="g-note" placeholder="为什么推荐"></textarea></div>
     <button class="btn" style="width:100%" onclick="saveGoods()">保存</button>
   `);
@@ -495,8 +498,226 @@ function addGoods(){
 }
 function saveGoods(){
   const items=getStore('hub_goods',[]);
-  items.unshift({name:$('#g-name').value,cat:$('#g-cat').value,season:$('#g-season')?$('#g-season').value:'',link:$('#g-link').value,note:$('#g-note').value});
+  items.unshift({name:$('#g-name').value,cat:$('#g-cat').value,season:$('#g-season')?$('#g-season').value:'',link:$('#g-link').value,shop:$('#g-shop')?$('#g-shop').value:'',price:$('#g-price')?$('#g-price').value:'',note:$('#g-note').value});
   setStore('hub_goods',items);closeModal();renderMod('goods');
+}
+function editGoods(i){
+  const items=getStore('hub_goods',[]);
+  const x=items[i];
+  if(!x)return;
+  openModal('编辑好物',`
+    <div class="form-row"><label>名称</label><input id="g-name" value="${x.name||''}"></div>
+    <div class="form-row"><label>分类</label><select id="g-cat"><option value="eat" ${x.cat==='eat'?'selected':''}>吃的</option><option value="use" ${x.cat==='use'?'selected':''}>用的</option><option value="wear" ${x.cat==='wear'?'selected':''}>穿的</option></select></div>
+    <div class="form-row" id="g-season-row" style="display:${x.cat==='wear'?'block':'none'}"><label>季节（穿）</label><select id="g-season"><option value="spring" ${x.season==='spring'?'selected':''}>春</option><option value="summer" ${x.season==='summer'?'selected':''}>夏</option><option value="autumn" ${x.season==='autumn'?'selected':''}>秋</option><option value="winter" ${x.season==='winter'?'selected':''}>冬</option></select></div>
+    <div class="form-row"><label>购买链接</label><input id="g-link" value="${x.link||''}"></div>
+    <div class="form-row"><label>店铺/品牌</label><input id="g-shop" value="${x.shop||''}"></div>
+    <div class="form-row"><label>价格（元）</label><input id="g-price" type="number" value="${x.price||''}"></div>
+    <div class="form-row"><label>优点总结</label><textarea id="g-note">${x.note||''}</textarea></div>
+    <button class="btn" style="width:100%;margin-bottom:8px" onclick="updateGoods(${i})">保存</button>
+    <button class="btn" style="width:100%;background:#ef4444" onclick="delGoods(${i})">🗑 删除</button>
+  `);
+  $('#g-cat').onchange=function(){document.getElementById('g-season-row').style.display=this.value==='wear'?'block':'none'};
+}
+function updateGoods(i){
+  const items=getStore('hub_goods',[]);
+  items[i]={name:$('#g-name').value,cat:$('#g-cat').value,season:$('#g-season')?$('#g-season').value:'',link:$('#g-link').value,shop:$('#g-shop')?$('#g-shop').value:'',price:$('#g-price')?$('#g-price').value:'',note:$('#g-note').value};
+  setStore('hub_goods',items);closeModal();renderMod('goods');
+}
+function delGoods(i){
+  if(!confirm('确定删除？'))return;
+  const items=getStore('hub_goods',[]);
+  items.splice(i,1);setStore('hub_goods',items);closeModal();renderMod('goods');
+}
+// 智能识别好物
+const GOODS_KEYWORDS={
+  eat:['零食','坚果','蛋糕','饼干','巧克力','糖果','蜂蜜','茶叶','咖啡','奶粉','牛奶','酸奶','果干','蜜饯','肉脯','牛肉干','猪肉脯','鱼干','海苔','薯片','锅巴','瓜子','花生','核桃','腰果','开心果','蔓越莓','蓝莓','草莓','芒果','榴莲','面包','代餐','麦片','燕窝','人参','枸杞','养生','保健','维生素','益生菌','酵素','美食','好吃','零食铺','食品','三只松鼠','良品铺子','百草味','来伊份','旺旺','徐福记','稻香村','好吃点','干果','礼盒','不上火','每日坚果','混合果仁'],
+  wear:['衣服','上衣','衬衫','T恤','卫衣','毛衣','外套','羽绒服','棉服','大衣','风衣','西装','夹克','马甲','背心','裤子','牛仔裤','休闲裤','运动裤','短裤','半身裙','连衣裙','长裙','短裙','内衣','内裤','袜子','睡衣','家居服','运动服','瑜伽服','防晒衣','冲锋衣','雪地靴','运动鞋','帆布鞋','板鞋','高跟鞋','平底鞋','凉鞋','拖鞋','靴子','包包','双肩包','单肩包','手提包','钱包','帽子','围巾','手套','墨镜','眼镜','项链','手链','耳环','戒指','手表','优衣库','ZARA','HM','Nike','Adidas','李宁','安踏','波司登','海澜之家','gxg','太平鸟','only','vero','moda','春款','夏款','秋款','冬款','穿搭','搭配','时尚','短袖','长袖','透气','凉感','AIRism','男女同款'],
+  use:['护肤品','面霜','乳液','爽肤水','精华','面膜','洗面奶','防晒霜','口红','粉底','眼影','睫毛膏','眉笔','腮红','遮瑕','卸妆','香水','洗发水','护发素','沐浴露','身体乳','洗手液','牙膏','牙刷','毛巾','纸巾','湿巾','卫生纸','洗衣液','洗衣粉','洗洁精','清洁剂','拖把','扫把','垃圾桶','收纳','整理','衣架','晾衣架','微波炉','烤箱','电饭煲','豆浆机','榨汁机','破壁机','电水壶','咖啡机','吸尘器','扫地机器人','加湿器','净化器','空调','风扇','暖气','台灯','夜灯','充电宝','充电器','数据线','耳机','音箱','手机壳','钢化膜','键盘','鼠标','u盘','硬盘','路由器','枕头','四件套','床垫','抱枕','坐垫','地毯','挂画','摆件','花瓶','香薰','精油','生活','日用','家居','好物','神器','推荐','种草','雾面','哑光','持久','不脱色','同心锁','花西子','美妆','彩妆','护肤','美容'],
+};
+const SHOP_KEYWORDS=['旗舰店','专卖店','官方','自营','官方旗舰店','品牌店','旗舰','海外','专营','直营','官方店','品牌旗舰店'];
+const BRAND_NAMES=['优衣库','ZARA','H&M','Nike','Adidas','李宁','安踏','波司登','海澜之家','太平鸟','三只松鼠','良品铺子','百草味','来伊份','花西子','完美日记','稚优泉','colorkey','卡姿兰','自然堂','百雀羚','相宜本草','珀莱雅','欧莱雅','兰蔻','雅诗兰黛','SK-II','资生堂','雪花秀','Whoo后','悦诗风吟','伊蒂之屋','3CE','MAC','YSL','Dior','Chanel','阿玛尼','CK','古驰','LV','普拉达','爱马仕','蔻驰','MK','新秀丽','小米','华为','苹果','OPPO','vivo','荣耀','realme','一加','魅族','大疆','sony','松下','飞利浦','戴森','九阳','苏泊尔','美的','格力','海尔','tcl','海信','创维','方太','老板','华帝','西门子','博世','宜家','无印良品','网易严选','京东京造','淘宝心选','南极人','恒源祥','北极绒'];
+const SEASON_KEYWORDS={spring:['春','春季','春款','早春','春装'],summer:['夏','夏季','夏款','盛夏','夏装','清凉','透气','凉感'],autumn:['秋','秋季','秋款','初秋','秋装','薄外套'],winter:['冬','冬季','冬款','寒冬','冬装','保暖','加厚','羽绒']};
+function classifyGoods(text){
+  const scores={eat:0,use:0,wear:0};
+  for(const cat in GOODS_KEYWORDS){
+    for(const kw of GOODS_KEYWORDS[cat]){
+      if(text.includes(kw))scores[cat]++;
+    }
+  }
+  let best='use',max=0;
+  for(const cat in scores){if(scores[cat]>max){max=scores[cat];best=cat}}
+  return {cat:best,scores};
+}
+function extractShop(text){
+  // 1. 先找品牌名（返回品牌+官方旗舰店）
+  for(const brand of BRAND_NAMES){
+    if(text.toLowerCase().includes(brand.toLowerCase()))return brand+'官方旗舰店';
+  }
+  // 2. 找各种店铺后缀模式（旗舰店/专卖/的店/工作室/专属等）
+  const SHOP_SUFFIXES=['旗舰店','专卖店','官方店','品牌店','专营店','直营店','海外店','的店','工作室','专属','授权店','自营店','特约店','代理店','折扣店','工厂店','企业店','旗舰','专卖'];
+  for(const kw of SHOP_SUFFIXES){
+    const idx=text.indexOf(kw);
+    if(idx>=0){
+      let start=idx;
+      while(start>0&&!/[：:，,。、\s（）()]/.test(text[start-1])&&idx-start<10)start--;
+      const shopName=text.slice(start,idx+kw.length);
+      if(shopName.length>=3)return shopName;
+    }
+  }
+  // 3. 找"店铺：xxx"或"来自xxx"模式
+  const m1=text.match(/(?:店铺|来自|推荐|购买)[：:]\s*([^\s，,。、\n]{2,15})/);
+  if(m1)return m1[1];
+  // 4. 找"在xxx买"模式
+  const m2=text.match(/在\s*([^\s，,。、\n]{2,10})\s*(?:买|购买|入手)/);
+  if(m2)return m2[1];
+  // 5. 找"xxx同款"模式（说明是某个博主/明星推荐）
+  const m3=text.match(/([^\s，,。、\n]{2,8})\s*同款/);
+  if(m3)return m3[1]+'推荐';
+  return '';
+}
+function detectSeason(text){
+  for(const s in SEASON_KEYWORDS){
+    for(const kw of SEASON_KEYWORDS[s]){
+      if(text.includes(kw))return s;
+    }
+  }
+  return '';
+}
+function extractLinks(text){
+  const urls=[];
+  // 匹配各种链接
+  const m1=text.match(/https?:\/\/[^\s，。、""''<>\n\r）)]+/gi);
+  if(m1)urls.push(...m1);
+  // 匹配淘口令/分享文案里的链接
+  const m2=text.match(/[a-zA-Z0-9]{10,}\/[a-zA-Z0-9]{5,}/g);
+  if(m2)urls.push(...m2.map(s=>'https://'+s));
+  return [...new Set(urls)];
+}
+function extractPrice(text){
+  const m=text.match(/[¥￥]\s*(\d+(?:\.\d{1,2})?)/);
+  if(m)return m[1];
+  const m2=text.match(/(\d+(?:\.\d{1,2})?)\s*元/);
+  if(m2)return m2[1];
+  const m3=text.match(/价格\s*(\d+(?:\.\d{1,2})?)/);
+  if(m3)return m3[1];
+  return '';
+}
+function smartAddGoods(){
+  openModal('🤖 智能识别好物',`
+    <div style="background:rgba(255,142,83,.1);border-radius:8px;padding:10px;margin-bottom:12px;font-size:.78em;color:var(--text-light);line-height:1.5">
+      <b>三种方式，任选或混合使用：</b><br>
+      <b>① 粘贴文案</b>（推荐）：复制小红书/B站/微信的文字内容粘贴<br>
+      <b>② 截图转文字</b>：iPhone 截图 → 相册打开 → 长按图片"提取文字" → 复制 → 粘贴到下方<br>
+      <b>③ 填商品链接</b>：淘宝/京东/拼多多链接，系统尝试自动抓取（成功率约50%，受平台反爬限制）
+    </div>
+    <div class="form-row"><label>📋 文案/截图转文字</label><textarea id="sg-text" placeholder="粘贴任意好物推荐文字，支持多段批量识别&#10;&#10;例如：&#10;三只松鼠每日坚果旗舰店 30包 ¥89.9&#10;https://item.jd.com/xxx.html&#10;&#10;这家宝藏小店的手工饼干超好吃&#10;店铺：美好食光工作室 ¥29.9" style="min-height:120px"></textarea></div>
+    <div class="form-row"><label>🔗 商品链接（可选）</label><textarea id="sg-links" placeholder="淘宝/京东/拼多多/抖音链接，每行一个，系统会自动抓取" style="min-height:60px"></textarea></div>
+    <button class="btn" style="width:100%;background:var(--goods);margin-bottom:8px" onclick="runSmartGoods()">🚀 开始识别</button>
+    <div id="sg-status" style="font-size:.82em;color:var(--text-light);text-align:center;min-height:20px"></div>
+  `);
+}
+async function fetchGoodsLink(url){
+  const PROXIES=[
+    u=>`https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+    u=>`https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`,
+  ];
+  for(const p of PROXIES){
+    try{
+      const r=await fetch(p(url),{signal:AbortSignal.timeout(8000)});
+      if(!r.ok)continue;
+      const html=await r.text();
+      if(html.length<200)continue;
+      // 提取 title
+      let title='';
+      const tm=html.match(/<title[^>]*>([^<]+)<\/title>/i);
+      if(tm)title=tm[1].trim();
+      // 提取 og:title
+      const ogtm=html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i);
+      if(ogtm)title=ogtm[1].trim();
+      // 提取价格
+      let price='';
+      const pm=html.match(/[¥￥]\s*(\d+(?:\.\d{1,2})?)/);
+      if(pm)price=pm[1];
+      if(!price){
+        const pm2=html.match(/price['"]?\s*[:=]\s*['"]?(\d+(?:\.\d{1,2})?)/i);
+        if(pm2)price=pm2[1];
+      }
+      if(title&&title!=='302 Found'&&title.length>4){
+        return {title,price,raw:html};
+      }
+    }catch(e){continue}
+  }
+  return null;
+}
+async function runSmartGoods(){
+  const text=$('#sg-text').value.trim();
+  const linksText=$('#sg-links').value.trim();
+  const links=linksText?linksText.split('\n').map(s=>s.trim()).filter(Boolean):[];
+  if(!text&&links.length===0){alert('请粘贴文案或填写商品链接');return}
+  const statusEl=$('#sg-status');
+  const items=getStore('hub_goods',[]);
+  let added=0;
+  let failedLinks=0;
+  // 1. 先处理粘贴的文案
+  if(text){
+    statusEl.textContent='正在识别文案...';
+    const blocks=[];
+    let cur='';
+    for(const line of text.split('\n')){
+      cur+=line+'\n';
+      if(/https?:\/\//.test(line)||line.trim()===''){
+        if(cur.trim())blocks.push(cur.trim());
+        cur='';
+      }
+    }
+    if(cur.trim())blocks.push(cur.trim());
+    if(blocks.length===0)blocks.push(text);
+    for(const block of blocks){
+      if(block.length<4)continue;
+      const {cat}=classifyGoods(block);
+      const season=cat==='wear'?detectSeason(block):'';
+      const linkUrls=extractLinks(block);
+      const price=extractPrice(block);
+      const shop=extractShop(block);
+      let name=block.split('\n')[0].replace(/https?:\/\/[^\s]+/gi,'').replace(/[¥￥]\s*\d+(?:\.\d{1,2})?/g,'').replace(/\d+(?:\.\d{1,2})?\s*元/g,'').trim();
+      if(name.length>30)name=name.slice(0,30);
+      if(name.length<2){
+        const lines=block.split('\n').filter(x=>x.trim());
+        name=(lines[1]||block).replace(/https?:\/\/[^\s]+/gi,'').trim().slice(0,20);
+      }
+      let note=block.split('\n').slice(1).join(' ').replace(/https?:\/\/[^\s]+/gi,'').replace(/[¥￥]\s*\d+(?:\.\d{1,2})?/g,'').trim();
+      if(note.length>200)note=note.slice(0,200);
+      if(name&&name.length>=2){
+        items.unshift({name,cat,season,link:linkUrls[0]||'',shop,price,note});
+        added++;
+      }
+    }
+  }
+  // 2. 再处理商品链接（异步抓取）
+  for(let i=0;i<links.length;i++){
+    statusEl.textContent=`正在抓取商品链接 ${i+1}/${links.length}...`;
+    const r=await fetchGoodsLink(links[i]);
+    if(!r){failedLinks++;continue}
+    const fullText=r.title+(r.price?(' ¥'+r.price):'');
+    const {cat}=classifyGoods(fullText);
+    const season=cat==='wear'?detectSeason(fullText):'';
+    const shop=extractShop(r.raw||'');
+    items.unshift({
+      name:r.title.slice(0,40),
+      cat,
+      season,
+      link:links[i],
+      shop,
+      price:r.price||'',
+      note:'（链接自动抓取）',
+    });
+    added++;
+  }
+  setStore('hub_goods',items);
+  let msg=`✅ 识别完成！新增 ${added} 个好物`;
+  if(failedLinks>0)msg+=`（${failedLinks}个链接抓取失败，请手动粘贴文案）`;
+  statusEl.textContent=msg;
+  setTimeout(()=>{closeModal();renderMod('goods')},1200);
 }
 
 // --- 菜谱提取器 ---
@@ -671,9 +892,155 @@ function addTravel(){
     <div class="form-row"><label>目的地</label><input id="t-dest" placeholder="如：日本京都"></div>
     <div class="form-row"><label>状态</label><select id="t-status"><option value="want">想去</option><option value="plan">计划中</option><option value="done">已去</option></select></div>
     <div class="form-row"><label>天数</label><input id="t-days" type="number" placeholder="天数"></div>
-    <div class="form-row"><label>攻略链接</label><input id="t-link" placeholder="小红书/B站链接"></div>
-    <button class="btn" style="width:100%" onclick="saveTravel()">保存</button>
+    <div class="form-row"><label>攻略链接</label><input id="t-link" placeholder="小红书/B站/马蜂窝链接"></div>
+    <button class="btn" style="width:100%;margin-bottom:8px" onclick="saveTravel()">保存</button>
+    <button class="btn" style="width:100%;background:var(--travel)" onclick="smartExtractNew()">🤖 智能提取攻略</button>
   `);
+}
+// 智能提取攻略：输入链接 → 抓取并分类填充
+function smartExtractNew(){
+  const link=$('#t-link').value.trim();
+  const dest=$('#t-dest').value.trim()||'未命名';
+  const days=parseInt($('#t-days').value)||0;
+  // 创建一条记录，进入智能提取流程
+  const t=getStore('hub_travel',[]);
+  t.unshift({dest,status:'want',days,link,notes:'',scenery:[],food:[],stay:[],transport:[],rawText:''});
+  setStore('hub_travel',t);
+  closeModal();
+  smartExtract(0);
+}
+function smartExtract(i){
+  const t=getStore('hub_travel',[]);
+  const tr=t[i];
+  if(!tr){return}
+  openModal('🤖 智能提取攻略 - '+tr.dest,`
+    <div style="background:rgba(139,92,246,.1);border-radius:8px;padding:10px;margin-bottom:12px;font-size:.78em;color:var(--text-light)">
+      <b>两种方式任选：</b><br>
+      ① 粘贴攻略全文（推荐）：在小红书/B站/马蜂窝 App 里复制笔记内容，粘贴到下方文本框，系统自动按景点/美食/住宿/交通/贴士分类。<br>
+      ② 填写链接：系统尝试通过代理抓取（受平台反爬限制，可能失败）。
+    </div>
+    <div class="form-row"><label>📋 攻略全文（推荐粘贴）</label><textarea id="se-text" placeholder="把小红书/马蜂窝/知乎的攻略内容复制粘贴到这里，可以多篇合并粘贴&#10;&#10;例如：&#10;京都岚山竹林：免费，全天开放，建议早上去人少，可坐嵯峨野小火车&#10;伏见稻荷大社：免费，24小时，千本鸟居打卡点&#10;锦市场：小吃街，下午4点后人少&#10;住宿推荐京都站附近，交通方便，均价400/晚" style="min-height:160px">${tr.rawText||''}</textarea></div>
+    <div class="form-row"><label>🔗 链接（可选，每行一个）</label><textarea id="se-link" placeholder="https://www.xiaohongshu.com/explore/xxx&#10;https://www.mafengwo.cn/i/xxx" style="min-height:60px">${tr.link||''}</textarea></div>
+    <div class="form-row"><label>补充说明（可选）</label><input id="se-hint" placeholder="如：5天4晚亲子游"></div>
+    <button class="btn" style="width:100%;background:var(--travel);margin-bottom:8px" onclick="runSmartExtract(${i})">🚀 开始提取并分类</button>
+    <div id="se-status" style="font-size:.82em;color:var(--text-light);text-align:center;min-height:20px"></div>
+  `);
+}
+// 关键词分类词典
+const TRAVEL_KEYWORDS={
+  scenery:['景点','门票','开放','游览','参观','打卡','公园','寺','塔','博物馆','景区','广场','教堂','宫殿','城堡','湖','山','海滩','瀑布','观景','缆车','索道','游船','展览','地标','名胜','古迹','遗址','植物园','动物园','夜市','步行街','老街','古镇','稻荷','鸟居','岚山','清水','展望台','舞台','打卡点'],
+  food:['美食','餐厅','好吃','推荐','小吃','特色','必吃','当地','菜','面','饭','烤','火锅','甜品','咖啡','奶茶','早餐','午餐','晚餐','宵夜','市场','食堂','馆','店','糕','饼','汤','串','烧烤','日料','韩餐','西餐','中餐','拉面','玉子','抹茶','冰淇淋','小路'],
+  stay:['住宿','酒店','民宿','青旅','客栈','宾馆','套房','标间','大床','双床','一晚','房价','check','入住','退房','泳池','健身房','均价','性价比','/晚','元/晚'],
+  transport:['地铁','公交','打车','Uber','滴滴','机场','高铁','火车','飞机','巴士','地铁线','号线','换乘','时刻表','租车','自驾','停车','接驳','专线','轮渡','JR','特急','haruka','新干线','票务','巴士一日券','交通券','交通卡','一日券','周游券','关西机场','到京都站','内交通'],
+};
+function classifyLine(line){
+  const scores={scenery:0,food:0,stay:0,transport:0,notes:0};
+  for(const cat in TRAVEL_KEYWORDS){
+    for(const kw of TRAVEL_KEYWORDS[cat]){
+      if(line.includes(kw))scores[cat]++;
+    }
+  }
+  let best='notes',max=0;
+  for(const cat in scores){if(scores[cat]>max){max=scores[cat];best=cat}}
+  return max===0?'notes':best;
+}
+function runSmartExtract(i){
+  const rawText=$('#se-text').value.trim();
+  const links=$('#se-link').value.trim().split('\n').map(s=>s.trim()).filter(Boolean);
+  const hint=$('#se-hint').value.trim();
+  if(!rawText&&links.length===0){alert('请粘贴攻略文本或填写链接');return}
+  const statusEl=$('#se-status');
+  const t=getStore('hub_travel',[]);
+  // 合并已有内容（保留用户已编辑的）
+  const tt=getStore('hub_travel',[]);
+  const existing=tt[i];
+  const merged={
+    scenery:existing.scenery||[],
+    food:existing.food||[],
+    stay:existing.stay||[],
+    transport:existing.transport||[],
+    notes:(existing.notes&&existing.notes.length>0)?existing.notes.split('\n'):[],
+  };
+  const PROXIES=[
+    u=>`https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+    u=>`https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`,
+    u=>`https://corsproxy.io/?${encodeURIComponent(u)}`,
+  ];
+  async function fetchOne(url){
+    for(const p of PROXIES){
+      try{
+        const r=await fetch(p(url),{signal:AbortSignal.timeout(10000)});
+        if(!r.ok)continue;
+        const txt=await r.text();
+        if(txt&&txt.length>200)return txt;
+      }catch(e){continue}
+    }
+    return '';
+  }
+  function parseHTML(html){
+    let title='';
+    const tm=html.match(/<title[^>]*>([^<]+)<\/title>/i);
+    if(tm)title=tm[1].trim();
+    let desc='';
+    const dm=html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i);
+    if(dm)desc=dm[1].trim();
+    const odm=html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i);
+    if(odm&&!desc)desc=odm[1].trim();
+    let body=html.replace(/<script[\s\S]*?<\/script>/gi,'').replace(/<style[\s\S]*?<\/style>/gi,'').replace(/<[^>]+>/g,'\n');
+    body=body.replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'");
+    const lines=body.split('\n').map(s=>s.trim()).filter(s=>s.length>4);
+    return {title,desc,lines};
+  }
+  function processText(text){
+    // 按换行/句号/分号拆分
+    const lines=text.split(/[\n。；;]/).map(s=>s.trim()).filter(s=>s.length>4&&s.length<300);
+    for(const line of lines){
+      const cat=classifyLine(line);
+      if(!merged[cat].includes(line))merged[cat].push(line);
+    }
+  }
+  async function processAll(){
+    // 1. 先处理粘贴的文本
+    if(rawText){
+      statusEl.textContent='正在分类整理文本...';
+      processText(rawText);
+    }
+    // 2. 再处理链接
+    for(let li=0;li<links.length;li++){
+      statusEl.textContent=`正在抓取第 ${li+1}/${links.length} 个链接...`;
+      const html=await fetchOne(links[li]);
+      if(!html){statusEl.textContent=`⚠️ 第${li+1}个链接抓取失败（平台反爬），跳过`;await new Promise(r=>setTimeout(r,600));continue}
+      const {title,desc,lines}=parseHTML(html);
+      if(title)merged.notes.push(`【来源${li+1}】${title}`);
+      if(desc)merged.notes.push(desc);
+      for(const line of lines){
+        if(line.length<6||line.length>200)continue;
+        const cat=classifyLine(line);
+        if(!merged[cat].includes(line))merged[cat].push(line);
+      }
+    }
+    // 限制每个分类最多 40 条
+    for(const c in merged){merged[c]=merged[c].slice(0,40)}
+    if(hint)merged.notes.unshift(`📌 ${hint}`);
+    // 写入记录
+    const ttt=getStore('hub_travel',[]);
+    ttt[i].scenery=merged.scenery;
+    ttt[i].food=merged.food;
+    ttt[i].stay=merged.stay;
+    ttt[i].transport=merged.transport;
+    ttt[i].notes=merged.notes.join('\n');
+    ttt[i].rawText=rawText;
+    ttt[i].link=links.join('\n');
+    ttt[i].lastExtract=new Date().toLocaleString('zh-CN');
+    setStore('hub_travel',ttt);
+    statusEl.textContent='✅ 提取完成！正在打开编辑...';
+    await new Promise(r=>setTimeout(r,600));
+    closeModal();
+    viewTravel(i);
+  }
+  processAll().catch(e=>{
+    statusEl.textContent='❌ 提取失败：'+e.message;
+  });
 }
 function saveTravel(){
   const t=getStore('hub_travel',[]);
@@ -686,11 +1053,13 @@ function viewTravel(i){
   openModal(tr.dest,`
     <div class="form-row"><label>状态</label><select id="vt-status"><option value="want" ${tr.status==='want'?'selected':''}>想去</option><option value="plan" ${tr.status==='plan'?'selected':''}>计划中</option><option value="done" ${tr.status==='done'?'selected':''}>已去</option></select></div>
     ${tr.link?`<div class="form-row"><a href="${tr.link}" target="_blank" style="color:var(--accent);font-size:.8em">🔗 查看原攻略 ›</a></div>`:''}
-    <div class="form-row"><label>景点信息</label><textarea id="vt-scenery" placeholder="景点+门票/时间/交通">${tr.scenery.join('\\n')}</textarea></div>
-    <div class="form-row"><label>美食推荐</label><textarea id="vt-food" placeholder="餐厅+地址">${tr.food.join('\\n')}</textarea></div>
-    <div class="form-row"><label>住宿推荐</label><textarea id="vt-stay" placeholder="酒店+价格">${tr.stay.join('\\n')}</textarea></div>
-    <div class="form-row"><label>交通信息</label><textarea id="vt-transport" placeholder="大交通+当地交通">${tr.transport.join('\\n')}</textarea></div>
-    <div class="form-row"><label>预算+贴士</label><textarea id="vt-notes" placeholder="预算和注意事项">${tr.notes}</textarea></div>
+    <button class="btn" style="width:100%;background:var(--travel);margin-bottom:10px" onclick="closeModal();smartExtract(${i})">🤖 重新智能提取攻略</button>
+    ${tr.lastExtract?`<div style="font-size:.72em;color:var(--text-light);margin-bottom:10px;text-align:center">上次提取：${tr.lastExtract}</div>`:''}
+    <div class="form-row"><label>景点信息</label><textarea id="vt-scenery" placeholder="景点+门票/时间/交通" style="min-height:90px">${tr.scenery.join('\\n')}</textarea></div>
+    <div class="form-row"><label>美食推荐</label><textarea id="vt-food" placeholder="餐厅+地址" style="min-height:90px">${tr.food.join('\\n')}</textarea></div>
+    <div class="form-row"><label>住宿推荐</label><textarea id="vt-stay" placeholder="酒店+价格" style="min-height:90px">${tr.stay.join('\\n')}</textarea></div>
+    <div class="form-row"><label>交通信息</label><textarea id="vt-transport" placeholder="大交通+当地交通" style="min-height:90px">${tr.transport.join('\\n')}</textarea></div>
+    <div class="form-row"><label>预算+贴士</label><textarea id="vt-notes" placeholder="预算和注意事项" style="min-height:90px">${tr.notes}</textarea></div>
     <button class="btn" style="width:100%" onclick="saveTravelDetail(${i})">保存</button>
   `);
 }
@@ -889,15 +1258,211 @@ const HOT_PODCASTS=[
   {t:'日谈公园',h:'文化休闲',l:'https://www.xiaoyuzhoufm.com/'},
 ];
 function renderPodcast(){
+  const todos=getStore('hub_podcast_todo',[]);
   const notes=getStore('hub_podcast',[]);
+  const todoPending=todos.filter(t=>t.status==='todo');
+  const todoDone=todos.filter(t=>t.status==='done');
   let html=`
     <div class="section-title">🔥 热度播客推荐</div>
     ${HOT_PODCASTS.map(p=>`<a href="${p.l}" target="_blank" style="text-decoration:none"><div class="list-item"><div class="li-icon">🎙️</div><div class="li-info"><div class="li-title">${p.t}</div><div class="li-desc">${p.h}</div></div><div class="li-arrow">›</div></div></a>`).join('')}
+    <div class="section-title">🎧 待听播客 ${todoPending.length>0?`<span style="color:var(--podcast)">(${todoPending.length})</span>`:''}</div>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <button class="btn" style="flex:1;background:var(--podcast)" onclick="smartAddPodcast()">🤖 识别链接添加</button>
+      <button class="btn" style="flex:1" onclick="addPodcastTodo()">➕ 手动添加</button>
+    </div>
+    ${todoPending.length===0?'<div class="empty">暂无待听播客，复制链接添加</div>':todoPending.map((t,i)=>`<div class="list-item" onclick="viewPodcastTodo(${todos.indexOf(t)})"><div class="li-icon">🎧</div><div class="li-info"><div class="li-title">${t.title}</div><div class="li-desc">${t.host||'未知主播'} · ${t.platName||''} ${t.duration?('· '+t.duration):''}</div></div><div class="li-status want" style="cursor:pointer" onclick="event.stopPropagation();playPodcastTodo(${todos.indexOf(t)})">▶</div></div>`).join('')}
     <div class="section-title">📝 我的播客笔记</div>
     <button class="btn" style="width:100%;margin-bottom:10px" onclick="addPodcast()">➕ 添加笔记</button>
     ${notes.map((n,i)=>`<div class="list-item" onclick="viewPodcast(${i})"><div class="li-icon">🎙️</div><div class="li-info"><div class="li-title">${n.title}</div><div class="li-desc">${n.date} · ${n.host||''}</div></div></div>`).join('')||'<div class="empty">暂无笔记</div>'}
   `;
   return html;
+}
+function smartAddPodcast(){
+  openModal('🤖 识别播客链接',`
+    <div style="background:rgba(167,139,250,.1);border-radius:8px;padding:10px;margin-bottom:12px;font-size:.78em;color:var(--text-light);line-height:1.5">
+      <b>支持平台：</b>小宇宙 / Apple Podcasts / 网易云音乐 / 喜马拉雅 / B站播客<br>
+      <b>用法：</b>复制播客单集链接 → 粘贴到下方 → 点开始识别<br>
+      系统会自动抓取标题和主播信息，添加到待听列表。可批量粘贴多个链接（每行一个）。
+    </div>
+    <div class="form-row"><label>🔗 播客链接</label><textarea id="sp-links" placeholder="例如：&#10;https://www.xiaoyuzhoufm.com/episode/64a...&#10;https://music.163.com/djradio?id=...&#10;每行一个链接，支持批量" style="min-height:100px"></textarea></div>
+    <button class="btn" style="width:100%;background:var(--podcast);margin-bottom:8px" onclick="runSmartPodcast()">🚀 开始识别</button>
+    <div id="sp-status" style="font-size:.82em;color:var(--text-light);text-align:center;min-height:20px"></div>
+  `);
+}
+function detectPodcastPlatform(url){
+  if(/xiaoyuzhoufm\.com/.test(url))return {id:'xiaoyuzhou',name:'小宇宙'};
+  if(/podcasts\.apple\.com|itunes\.apple\.com/.test(url))return {id:'apple',name:'Apple Podcasts'};
+  if(/music\.163\.com/.test(url))return {id:'netease',name:'网易云'};
+  if(/ximalaya\.com/.test(url))return {id:'ximalaya',name:'喜马拉雅'};
+  if(/bilibili\.com/.test(url))return {id:'bili',name:'B站'};
+  if(/youtube\.com|youtu\.be/.test(url))return {id:'youtube',name:'YouTube'};
+  return {id:'other',name:'其他平台'};
+}
+async function fetchPodcastInfo(url){
+  const plat=detectPodcastPlatform(url);
+  const PROXIES=[
+    u=>`https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+    u=>`https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`,
+  ];
+  for(const p of PROXIES){
+    try{
+      const r=await fetch(p(url),{signal:AbortSignal.timeout(10000)});
+      if(!r.ok)continue;
+      const html=await r.text();
+      if(html.length<200)continue;
+      let title='',host='',desc='';
+      // og:title
+      const ogt=html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i);
+      if(ogt)title=ogt[1].trim();
+      if(!title){
+        const tm=html.match(/<title[^>]*>([^<]+)<\/title>/i);
+        if(tm)title=tm[1].trim();
+      }
+      // og:description
+      const ogd=html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i);
+      if(ogd)desc=ogd[1].trim();
+      // 小宇宙特殊：主播名常在标题或描述里
+      const hm=html.match(/主播[：:]\s*([^\s，,。\n]{2,15})/);
+      if(hm)host=hm[1];
+      // 通用：从 title 里分离 "节目名 - 主播" 或 "主播：节目"
+      if(!host){
+        const parts=title.split(/[-—|·]/);
+        if(parts.length>=2){
+          // 短的可能是主播名
+          const candidate=parts[parts.length-1].trim();
+          if(candidate.length>=2&&candidate.length<=10)host=candidate;
+        }
+      }
+      if(title&&title!=='302 Found'&&title.length>3){
+        // 清理标题里的平台后缀
+        title=title.replace(/\s*[-–—]\s*(小宇宙|Apple Podcasts|网易云音乐|喜马拉雅|哔哩哔哩|bilibili)\s*$/i,'');
+        return {title,host,desc,platName:plat.name,raw:html};
+      }
+    }catch(e){continue}
+  }
+  return null;
+}
+async function runSmartPodcast(){
+  const linksText=$('#sp-links').value.trim();
+  const links=linksText?linksText.split('\n').map(s=>s.trim()).filter(Boolean):[];
+  if(links.length===0){alert('请粘贴播客链接');return}
+  const statusEl=$('#sp-status');
+  const todos=getStore('hub_podcast_todo',[]);
+  let added=0,failed=0;
+  for(let i=0;i<links.length;i++){
+    statusEl.textContent=`正在识别 ${i+1}/${links.length}...`;
+    const url=links[i];
+    const plat=detectPodcastPlatform(url);
+    const info=await fetchPodcastInfo(url);
+    if(info){
+      // 去重
+      if(todos.some(t=>t.link===url)){
+        statusEl.textContent=`⚠️ 第${i+1}个已存在，跳过`;
+        await new Promise(r=>setTimeout(r,600));
+        continue;
+      }
+      todos.unshift({
+        title:info.title,
+        host:info.host||'',
+        link:url,
+        plat:plat.id,
+        platName:plat.name,
+        desc:info.desc||'',
+        duration:'',
+        addedAt:new Date().toLocaleString('zh-CN'),
+        status:'todo',
+      });
+      added++;
+    }else{
+      // 抓取失败，仍添加（用 URL 作为标题占位）
+      todos.unshift({
+        title:'（点击编辑改名）'+url.slice(-20),
+        host:'',
+        link:url,
+        plat:plat.id,
+        platName:plat.name,
+        desc:'自动抓取失败，请手动编辑补充信息',
+        duration:'',
+        addedAt:new Date().toLocaleString('zh-CN'),
+        status:'todo',
+      });
+      failed++;
+      added++;
+    }
+  }
+  setStore('hub_podcast_todo',todos);
+  let msg=`✅ 识别完成！新增 ${added} 个待听`;
+  if(failed>0)msg+=`（${failed}个需手动补充标题）`;
+  statusEl.textContent=msg;
+  setTimeout(()=>{closeModal();renderMod('podcast')},1200);
+}
+function addPodcastTodo(){
+  openModal('手动添加待听',`
+    <div class="form-row"><label>标题</label><input id="pt-title" placeholder="播客单集标题"></div>
+    <div class="form-row"><label>主播</label><input id="pt-host" placeholder="主播名"></div>
+    <div class="form-row"><label>平台</label><select id="pt-plat"><option value="xiaoyuzhou">小宇宙</option><option value="apple">Apple Podcasts</option><option value="netease">网易云</option><option value="ximalaya">喜马拉雅</option><option value="bili">B站</option><option value="youtube">YouTube</option><option value="other">其他</option></select></div>
+    <div class="form-row"><label>时长</label><input id="pt-duration" placeholder="如 45分钟"></div>
+    <div class="form-row"><label>链接</label><input id="pt-link" placeholder="播客链接"></div>
+    <div class="form-row"><label>备注</label><textarea id="pt-desc" placeholder="为什么想听"></textarea></div>
+    <button class="btn" style="width:100%" onclick="savePodcastTodo()">保存</button>
+  `);
+}
+function savePodcastTodo(){
+  const todos=getStore('hub_podcast_todo',[]);
+  const platName={xiaoyuzhou:'小宇宙',apple:'Apple Podcasts',netease:'网易云',ximalaya:'喜马拉雅',bili:'B站',youtube:'YouTube',other:'其他'}[$('#pt-plat').value];
+  todos.unshift({title:$('#pt-title').value,host:$('#pt-host').value,plat:$('#pt-plat').value,platName,link:$('#pt-link').value,duration:$('#pt-duration').value,desc:$('#pt-desc').value,addedAt:new Date().toLocaleString('zh-CN'),status:'todo'});
+  setStore('hub_podcast_todo',todos);closeModal();renderMod('podcast');
+}
+function viewPodcastTodo(i){
+  const todos=getStore('hub_podcast_todo',[]);
+  const t=todos[i];
+  if(!t)return;
+  openModal(t.title,`
+    <div class="form-row"><label>主播</label><input id="vt-host" value="${t.host||''}"></div>
+    <div class="form-row"><label>时长</label><input id="vt-duration" value="${t.duration||''}"></div>
+    <div class="form-row"><label>备注</label><textarea id="vt-desc">${t.desc||''}</textarea></div>
+    ${t.link?`<div class="form-row"><a href="${t.link}" target="_blank" style="color:var(--podcast);font-size:.85em">🔗 ${t.platName||'打开'}收听 ›</a></div>`:''}
+    <div style="font-size:.72em;color:var(--text-light);margin-bottom:10px">添加于 ${t.addedAt||''}</div>
+    <button class="btn" style="width:100%;background:var(--podcast);margin-bottom:8px" onclick="donePodcastTodo(${i})">✅ 已听完，转笔记</button>
+    <button class="btn" style="width:100%;margin-bottom:8px" onclick="updatePodcastTodo(${i})">保存修改</button>
+    <button class="btn" style="width:100%;background:#ef4444" onclick="delPodcastTodo(${i})">🗑 删除</button>
+  `);
+}
+function playPodcastTodo(i){
+  const todos=getStore('hub_podcast_todo',[]);
+  if(todos[i]&&todos[i].link)window.open(todos[i].link,'_blank');
+}
+function updatePodcastTodo(i){
+  const todos=getStore('hub_podcast_todo',[]);
+  todos[i].host=$('#vt-host').value;
+  todos[i].duration=$('#vt-duration').value;
+  todos[i].desc=$('#vt-desc').value;
+  setStore('hub_podcast_todo',todos);closeModal();renderMod('podcast');
+}
+function donePodcastTodo(i){
+  const todos=getStore('hub_podcast_todo',[]);
+  const t=todos[i];
+  if(!t)return;
+  // 转入笔记，打开笔记编辑
+  const notes=getStore('hub_podcast',[]);
+  notes.unshift({title:t.title,host:t.host,plat:t.plat,link:t.link,summary:t.desc||'',quotes:[],actions:[],date:todayKey(),fromTodo:true});
+  setStore('hub_podcast',notes);
+  todos.splice(i,1);
+  setStore('hub_podcast_todo',todos);
+  closeModal();
+  // 打开笔记编辑
+  openModal('✅ 已转入笔记 - '+t.title,`
+    <div style="text-align:center;padding:20px 10px">
+      <div style="font-size:2em;margin-bottom:10px">🎉</div>
+      <div style="font-size:.9em;margin-bottom:15px">已转入笔记，现在可以补充核心总结、金句和行动项</div>
+      <button class="btn" style="width:100%;background:var(--podcast)" onclick="closeModal();viewPodcast(0)">📝 编辑笔记</button>
+    </div>
+  `);
+}
+function delPodcastTodo(i){
+  if(!confirm('确定删除这个待听播客？'))return;
+  const todos=getStore('hub_podcast_todo',[]);
+  todos.splice(i,1);setStore('hub_podcast_todo',todos);closeModal();renderMod('podcast');
 }
 function addPodcast(){
   openModal('添加播客笔记',`
